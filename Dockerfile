@@ -22,6 +22,10 @@ RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir fastapi uvicorn python-multipart jinja2 ultralytics
 
+# Ultralytics fuerza la instalación de opencv-python (la versión que necesita GUI). 
+# La desinstalamos para que el sistema use opencv-python-headless que instalamos en requirements.txt
+RUN pip uninstall -y opencv-python
+
 # Copia el resto de los archivos del proyecto dándole permisos al usuario
 COPY --chown=user . /app
 
