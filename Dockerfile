@@ -23,8 +23,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir fastapi uvicorn python-multipart jinja2 ultralytics
 
 # Ultralytics fuerza la instalación de opencv-python (la versión que necesita GUI). 
-# La desinstalamos para que el sistema use opencv-python-headless que instalamos en requirements.txt
-RUN pip uninstall -y opencv-python
+# La desinstalamos junto con cualquier rastro para asegurar una instalación limpia de la versión headless
+RUN pip uninstall -y opencv-python opencv-python-headless
+RUN pip install --no-cache-dir opencv-python-headless
 
 # Copia el resto de los archivos del proyecto dándole permisos al usuario
 COPY --chown=user . /app
