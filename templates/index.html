@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clasificador de Rayos X de Tórax</title>
+    <!-- Favicon para evitar error 404 en la consola -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩻</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="glass-container">
+        <header>
+            <h1>Diagnóstico Asistido por IA</h1>
+            <p>Análisis de Rayos X para Detección de Neumonía</p>
+        </header>
+
+        <main>
+            {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+            {% endif %}
+
+            <div class="main-grid">
+                <!-- Panel de Configuración y Carga -->
+                <div class="panel upload-panel">
+                    <h2>Nueva Consulta</h2>
+                    <form action="/predict" method="post" enctype="multipart/form-data" id="upload-form">
+                        
+                        <div class="file-drop-area" id="drop-area">
+                            <span class="file-message">Arrastra una imagen o haz clic aquí</span>
+                            <input type="file" name="file" id="file" accept="image/*" required>
+                        </div>
+                        <div id="preview-container" style="display: none;">
+                            <img id="img-preview" src="#" alt="Previsualización">
+                        </div>
+
+                        <div class="options-container">
+                            <div class="option-group">
+                                <h3>Preprocesamiento</h3>
+                                <div class="radio-group">
+                                    <input type="radio" id="prep-no" name="preprocess" value="no" checked>
+                                    <label for="prep-no">Original</label>
+                                    
+                                    <input type="radio" id="prep-contorno" name="preprocess" value="contorno">
+                                    <label for="prep-contorno">Contorno</label>
+                                    
+                                    <input type="radio" id="prep-pulmon" name="preprocess" value="pulmon">
+                                    <label for="prep-pulmon">Pulmón</label>
+                                    
+                                    <input type="radio" id="prep-ambos" name="preprocess" value="ambos">
+                                    <label for="prep-ambos">Ambos</label>
+                                </div>
+                            </div>
+
+                            <div class="option-group">
+                                <h3>Modelo de Clasificación</h3>
+                                <div class="radio-group">
+                                    <input type="radio" id="mod-orig" name="model_choice" value="original" checked>
+                                    <label for="mod-orig">Modelo Original</label>
+                                    
+                                    <input type="radio" id="mod-prep" name="model_choice" value="preprocessed">
+                                    <label for="mod-prep">Modelo Preprocesado</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            <span>Analizar Imagen</span>
+                            <div class="loader"></div>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Panel de Resultados -->
+                {% if prediction %}
+                <div class="panel results-panel fade-in">
+                    <h2>Resultados del Análisis</h2>
+                    <div class="result-card {% if prediction == 'NORMAL' %}normal{% else %}pneumonia{% endif %}">
+                        <div class="diagnosis">
+                            <h3>Diagnóstico:</h3>
+                            <span class="prediction-text">{{ prediction }}</span>
+                        </div>
+                        <div class="confidence">
+                            <h3>Nivel de Confianza:</h3>
+                            <span class="conf-text">{{ confidence }}</span>
+                        </div>
+                    </div>
+
+                    <div class="info-badges">
+                        <span class="badge">Prep: {{ preprocess_used | title }}</span>
+                        <span class="badge">Modelo: {{ 'Preprocesado' if model_used == 'preprocessed' else 'Original' }}</span>
+                    </div>
+
+                    <div class="image-result">
+                        <h3>Imagen Analizada:</h3>
+                        <img src="{{ image_url }}" alt="Imagen Procesada">
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Preview logic
+        const fileInput = document.getElementById('file');
+        const dropArea = document.getElementById('drop-area');
+        const previewContainer = document.getElementById('preview-container');
+        const imgPreview = document.getElementById('img-preview');
+        const fileMessage = document.querySelector('.file-message');
+        const form = document.getElementById('upload-form');
+        const submitBtn = document.querySelector('.submit-btn');
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imgPreview.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                    dropArea.classList.add('has-file');
+                    fileMessage.textContent = fileInput.files[0].name;
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        // Drag and drop styles
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.add('highlight');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => {
+                dropArea.classList.remove('highlight');
+            }, false);
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            fileInput.files = files;
+            
+            const event = new Event('change');
+            fileInput.dispatchEvent(event);
+        }, false);
+
+        if (form) {
+            form.addEventListener('submit', () => {
+                submitBtn.classList.add('loading');
+            });
+        }
+    </script>
+</body>
+</html>

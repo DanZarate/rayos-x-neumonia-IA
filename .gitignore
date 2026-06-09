@@ -1,0 +1,22 @@
+# Datasets (No subir porque pesan mucho y no se usan en producción)
+Chest-X-Rays-4/
+Chest-X-Rays-4-Preprocessed/
+
+# Entornos virtuales y caché de Python
+venv/
+__pycache__/
+*.pyc
+
+# Imágenes de prueba y generadas por YOLO (no subir)
+*.jpg
+*.jpeg
+*.png
+
+# Modelos no optimizados de YOLO (solo subir best.pt)
+*last.pt
+
+# Archivos de resultados y documentos
+results/
+*.csv
+*.tex
+*.pdf
